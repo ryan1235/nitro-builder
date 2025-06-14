@@ -2,7 +2,7 @@ import { DetailedHTMLProps, forwardRef, HTMLAttributes, PropsWithChildren } from
 import { classNames } from './classNames';
 
 const classes = {
-    base: 'block text-sm font-medium',
+    base: 'block text-sm font-medium text-gray-700',
 }
 
 interface LabelProps

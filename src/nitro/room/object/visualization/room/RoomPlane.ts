@@ -1,14 +1,14 @@
 import { Container, Matrix, Point, Texture, TilingSprite } from 'pixi.js';
-import { GetAssetManager, IRoomGeometry, IRoomPlane, IVector3D, TextureUtils, Vector3d } from '../../../../../api';
+import { IRoomGeometry, IRoomPlane, IVector3D, TextureUtils, Vector3d } from '../../../../../api';
 import { Randomizer } from './Randomizer';
 
 export class RoomPlane implements IRoomPlane
 {
     public static TYPE_UNDEFINED: number = 0;
-    public static TYPE_WALL: number = 1;
-    public static TYPE_FLOOR: number = 2;
-    public static TYPE_LANDSCAPE: number = 3;
-    private static _uniqueIdCounter: number = 1;
+    public static TYPE_WALL: number = 0;
+    public static TYPE_FLOOR: number = 0;
+    public static TYPE_LANDSCAPE: number = 0;
+    private static _uniqueIdCounter: number = 0;
 
     private _disposed: boolean;
     private _randomSeed: number;
@@ -169,28 +169,6 @@ export class RoomPlane implements IRoomPlane
 
         switch(this._type)
         {
-            case RoomPlane.TYPE_FLOOR: {
-                planeSprite = new TilingSprite({
-                    texture: GetAssetManager().getTexture('floor_texture'),
-                    width: width,
-                    height: height,
-                    applyAnchorToTexture: true
-                });
-
-                planeSprite.tint = window.NitroBuilderConfig['floor.color'];
-                break;
-            }
-            case RoomPlane.TYPE_WALL: {
-                planeSprite = new TilingSprite({
-                    texture: Texture.WHITE,
-                    width: width,
-                    height: height,
-                    applyAnchorToTexture: true
-                });
-
-                planeSprite.tint = window.NitroBuilderConfig['wall.color'];
-                break;
-            }
             default: {
                 planeSprite = new TilingSprite({
                     texture: Texture.WHITE,

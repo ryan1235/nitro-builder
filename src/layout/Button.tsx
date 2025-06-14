@@ -2,23 +2,23 @@ import { ButtonHTMLAttributes, DetailedHTMLProps, forwardRef, PropsWithChildren 
 import { classNames } from './classNames';
 
 const classes = {
-    base: 'inline-flex justify-center items-center gap-2 transition-[background-color] duration-300 transform tracking-wide rounded-md',
-    disabled: '',
+    base: 'inline-flex justify-center items-center gap-2 transition-all duration-200 transform tracking-wide rounded-lg shadow-sm hover:shadow-md active:scale-95',
+    disabled: 'opacity-50 cursor-not-allowed',
     size: {
         xs: 'px-2 py-1 text-xs font-medium',
-        sm: 'px-3 py-2 text-sm font-medium ',
-        default: 'px-5 py-2.5 text-sm font-medium',
-        lg: 'px-5 py-3 text-base font-medium',
-        xl: 'px-6 py-3.5 text-base font-medium',
+        sm: 'px-3 py-2 text-sm font-medium',
+        default: 'px-4 py-2 text-sm font-medium',
+        lg: 'px-6 py-3 text-base font-medium',
+        xl: 'px-8 py-4 text-lg font-medium',
     },
     outline: {
-        default: 'text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-600 dark:focus:ring-blue-800',
-        dark: 'text-gray-900 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 dark:border-gray-600 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800'
+        default: 'text-blue-600 hover:text-white border-2 border-blue-600 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+        dark: 'text-gray-700 hover:text-white border-2 border-gray-700 hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2'
     },
     color: {
-        default: 'text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300',
-        dark: 'text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300',
-        ghost: 'text-black bg-transparent hover:bg-gray-200 focus:bg-gray-300'
+        default: 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+        dark: 'text-white bg-gray-800 hover:bg-gray-900 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2',
+        ghost: 'text-gray-700 bg-transparent hover:bg-gray-100 focus:bg-gray-200'
     }
 }
 

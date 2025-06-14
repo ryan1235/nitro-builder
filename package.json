@@ -6,9 +6,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "vite",
-    "build": "vite build",
-    "build:prod": "npx browserslist@latest --update-db && yarn build",
+    "start": "npx vite",
+    "build": "npx vite build",
+    "build:prod": "npx update-browserslist-db@latest && npm run build",
     "find:circular": "dpdm --no-warning --no-tree -T ./src/nitro/index.ts",
     "eslint": "eslint src --ext .ts,.tsx"
   },
@@ -33,7 +33,7 @@
     "@types/react-dom": "^18.2.19",
     "@typescript-eslint/eslint-plugin": "^7.0.1",
     "@typescript-eslint/parser": "^7.0.1",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.17",
     "dpdm": "^3.14.0",
     "eslint": "^8.56.0",

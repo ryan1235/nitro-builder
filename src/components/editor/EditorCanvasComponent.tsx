@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from 'react';
-import { MdAspectRatio, MdStar, MdZoomIn, MdZoomOut } from 'react-icons/md';
+import { MdAspectRatio, MdKeyboardArrowDown, MdKeyboardArrowUp, MdPrint, MdRotateLeft, MdRotateRight, MdStar, MdZoomIn, MdZoomOut } from 'react-icons/md';
 import { GetPixi, IObjectData, IVector3D, RoomObjectCategory, RoomObjectVariable, Vector3d } from '../../api';
 import { useNitroBundle } from '../../hooks';
 import { Button, Flex } from '../../layout';
@@ -64,11 +64,12 @@ export const EditorCanvas2Component: FC<{}> = props =>
         addFurnitureIntoRoom(objectId, assetData.name, new Vector3d(90))
 
         const camera = GetRoomEngine().getRoomCamera(currentRoomId);
-
         camera.targetId = objectId;
         camera.targetCategory = RoomObjectCategory.FLOOR;
 
+        GetRoomEngine().setRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID, 1.5);
         camera.activateFollowing(window.NitroBuilderConfig['camera.follow.duration']);
+
     }, [ assetData, assets, isRoomReady, currentRoomId, currentObjectId, currentObjectCategory ]);
 
     useEffect(() =>
@@ -97,7 +98,7 @@ export const EditorCanvas2Component: FC<{}> = props =>
         if(!isReady) return;
 
         const roomId = currentRoomId;
-        const planeParser = CreatePlaneParser(7, 7);
+        const planeParser = CreatePlaneParser(10, 10);
 
         GetRoomEngine().createRoomInstance(roomId, planeParser.getMapData());
 
@@ -110,8 +111,11 @@ export const EditorCanvas2Component: FC<{}> = props =>
         const displayObject = GetRoomEngine().getRoomInstanceDisplay(currentRoomId, CANVAS_ID, width, height, 64);
 
         GetRoomEngine().setRoomInstanceRenderingCanvasMask(currentRoomId, CANVAS_ID, true);
-
+        GetRoomEngine().setRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID, 2);
         pixi.stage.addChild(displayObject);
+
+        const camera = GetRoomEngine().getRoomCamera(currentRoomId);
+        GetRoomEngine().setRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID, 1.5);
 
         CenterRoom(currentRoomId, CANVAS_ID);
         SetActiveRoomId(currentRoomId);
@@ -138,7 +142,17 @@ export const EditorCanvas2Component: FC<{}> = props =>
             const canvas = pixi.canvas;
 
             canvas.onclick = event => DispatchMouseEvent(event);
-            canvas.onmousemove = event => DispatchMouseEvent(event);
+            canvas.onmousemove = event => {
+                DispatchMouseEvent(event);
+                if (event.buttons === 1) { // Verifica se o botão esquerdo está pressionado
+                    console.log('Coordenadas do mouse:', {
+                        x: event.clientX,
+                        y: event.clientY,
+                        movementX: event.movementX,
+                        movementY: event.movementY
+                    });
+                }
+            };
             canvas.onmousedown = event => DispatchMouseEvent(event);
             canvas.onmouseup = event => DispatchMouseEvent(event);
 
@@ -202,11 +216,83 @@ export const EditorCanvas2Component: FC<{}> = props =>
 
     const changeObjectState = () => GetRoomEngine().changeObjectState(currentRoomId, currentObjectId, currentObjectCategory);
 
+    const rotateObject = (clockwise: boolean) => {
+        if(currentObjectId === -1) return;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return;
+
+        const direction = roomObject.getDirection();
+        let newDirection;
+        
+        if(clockwise) {
+            newDirection = new Vector3d((direction.x + 2) % 8);
+        } else {
+            newDirection = new Vector3d((direction.x + 6) % 8);
+        }
+        
+        roomObject.setDirection(newDirection);
+        roomObject.model.forceRefresh();
+    }
+
+    const moveObjectUp = () => {
+        if(currentObjectId === -1) return;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return;
+
+        const location = roomObject.getLocation();
+        const newLocation = new Vector3d(location.x, location.y - 1, location.z);
+        
+        roomObject.setLocation(newLocation);
+        roomObject.model.forceRefresh();
+    }
+
+    const moveObjectDown = () => {
+        if(currentObjectId === -1) return;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return;
+
+        const location = roomObject.getLocation();
+        const newLocation = new Vector3d(location.x, location.y + 1, location.z);
+        
+        roomObject.setLocation(newLocation);
+        roomObject.model.forceRefresh();
+    }
+
+    const printObject = () => {
+        if(currentObjectId === -1) return;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return;
+
+        const canvas = GetPixi().canvas;
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        const link = document.createElement('a');
+        link.download = 'nitro-object.png';
+        link.href = dataUrl;
+        link.click();
+    }
+
     return (
-        <div className="relative w-full h-full" ref={ elementRef }>
+        <div className="relative w-full h-full bg-white" ref={ elementRef }>
             { isRoomReady &&
                 <Flex className="absolute gap-1 p-1 bg-gray-800 rounded-md bg-opacity-80 top-2 right-2">
                     <Flex className="gap-1">
+                        <Button
+                            color="dark"
+                            size="sm"
+                            onClick={ () => moveObjectUp() }>
+                            <MdKeyboardArrowUp />
+                        </Button>
+                        <Button
+                            color="dark"
+                            size="sm"
+                            onClick={ () => moveObjectDown() }>
+                            <MdKeyboardArrowDown />
+                        </Button>
                         <Button
                             color="dark"
                             size="sm"
@@ -230,6 +316,24 @@ export const EditorCanvas2Component: FC<{}> = props =>
                             size="sm"
                             onClick={ () => changeObjectState() }>
                             <MdStar />
+                        </Button>
+                        <Button
+                            color="dark"
+                            size="sm"
+                            onClick={ () => rotateObject(false) }>
+                            <MdRotateLeft />
+                        </Button>
+                        <Button
+                            color="dark"
+                            size="sm"
+                            onClick={ () => rotateObject(true) }>
+                            <MdRotateRight />
+                        </Button>
+                        <Button
+                            color="dark"
+                            size="sm"
+                            onClick={ () => printObject() }>
+                            <MdPrint />
                         </Button>
                     </Flex>
                 </Flex> }

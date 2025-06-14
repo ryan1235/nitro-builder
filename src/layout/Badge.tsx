@@ -2,7 +2,7 @@ import { DetailedHTMLProps, forwardRef, HTMLAttributes, PropsWithChildren } from
 import { classNames } from './classNames';
 
 const classes = {
-    base: 'flex items-center justify-center px-1.5 py-1 text-xs text-ellipsis overflow-hidden gap-1 bg-gray-300 rounded-md',
+    base: 'inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800',
 }
 
 interface BadgeProps

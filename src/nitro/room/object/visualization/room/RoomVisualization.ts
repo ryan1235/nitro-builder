@@ -10,16 +10,17 @@ import { RoomVisualizationData } from './RoomVisualizationData';
 export class RoomVisualization extends RoomObjectSpriteVisualization implements IPlaneVisualization
 {
     public static FLOOR_COLOR: number = 0xFFFFFF;
-    public static FLOOR_COLOR_LEFT: number = 0xDDDDDD;
-    public static FLOOR_COLOR_RIGHT: number = 0xBBBBBB;
+    public static FLOOR_COLOR_LEFT: number = 0xFFFFFF;
+    public static FLOOR_COLOR_RIGHT: number = 0xFFFFFF;
     private static WALL_COLOR_TOP: number = 0xFFFFFF;
-    private static WALL_COLOR_SIDE: number = 0xCCCCCC;
-    private static WALL_COLOR_BOTTOM: number = 0x999999;
-    private static WALL_COLOR_BORDER: number = 0x999999;
+    private static WALL_COLOR_SIDE: number = 0xFFFFFF;
+    private static WALL_COLOR_BOTTOM: number = 0xFFFFFF;
+    private static WALL_COLOR_BORDER: number = 0xFFFFFF;
     public static LANDSCAPE_COLOR_TOP: number = 0xFFFFFF;
-    public static LANDSCAPE_COLOR_SIDE: number = 0xCCCCCC;
-    public static LANDSCAPE_COLOR_BOTTOM: number = 0x999999;
-    private static ROOM_DEPTH_OFFSET: number = 1000;
+    public static LANDSCAPE_COLOR_SIDE: number = 0xFFFFFF;
+    public static LANDSCAPE_COLOR_BOTTOM: number = 0xFFFFFF;
+    private static ROOM_DEPTH_OFFSET: number = 1000; // Esse não é cor, então permanece igual
+    
 
     protected _data: RoomVisualizationData;
 

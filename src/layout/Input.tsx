@@ -2,18 +2,18 @@ import { DetailedHTMLProps, forwardRef, InputHTMLAttributes, PropsWithChildren }
 import { classNames } from './classNames';
 
 const classes = {
-    base: 'block w-full placeholder-gray-400 border border-gray-300 shadow-sm appearance-none',
-    disabled: '',
+    base: 'block w-full bg-white border border-gray-300 shadow-sm appearance-none transition-all duration-200',
+    disabled: 'opacity-50 cursor-not-allowed bg-gray-50',
     size: {
-        xs: 'px-2 py-1 text-xs font-medium',
-        sm: 'px-3 py-2 text-sm font-medium ',
-        default: 'p-0 text-xs font-medium',
-        lg: 'px-5 py-3 text-base font-medium',
-        xl: 'px-6 py-3.5 text-base font-medium',
+        xs: 'px-2 py-1 text-xs',
+        sm: 'px-3 py-2 text-sm',
+        default: 'px-3 py-2 text-sm',
+        lg: 'px-4 py-2.5 text-base',
+        xl: 'px-5 py-3 text-base',
     },
-    rounded: 'rounded-md',
+    rounded: 'rounded-lg',
     color: {
-        default: 'focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-black',
+        default: 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400',
     }
 }
 
