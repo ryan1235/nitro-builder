@@ -5,66 +5,59 @@ export const useIframeProtection = () => {
 
     useEffect(() => {
         const checkOrigin = () => {
-            // Verifica se está em um iframe
-            if (window.self !== window.top) {
-                // Obtém o domínio do iframe pai
-                const parentOrigin = window.parent.location.origin;
-                // Verifica se o domínio é habbonce.com.br ou localhost
-                const isValid = parentOrigin === 'https://habb2once.com.br' || 
-                              parentOrigin === 'http://habbon2ce.com.br' ||
-                              parentOrigin === 'http://localhost:3000' ||
-                              parentOrigin === 'http://localhost:5173' ||
-                              parentOrigin === 'http://127.0.0.1:3000' ||
-                              parentOrigin === 'http://127.0.0.1:5173';
-                
-                setIsValidOrigin(isValid);
+            try {
+                // Verifica se está em um iframe
+                if (window.self !== window.top) {
+                    // Obtém o domínio do iframe pai
+                    const parentOrigin = window.parent.location.origin;
+                    // Lista de origens permitidas
+                    const allowedOrigins = [
+                        'https://habb2once.com.br',
+                        'http://habb2once.com.br',
+                        'http://localhost:3000',
+                        'http://localhost:5173',
+                        'http://127.0.0.1:3000',
+                        'http://127.0.0.1:5173'
+                    ];
 
-                if (!isValid) {
-                    // Se não for um domínio válido, redireciona ou mostra mensagem de erro
-                    document.body.innerHTML = `
-                        <div style="
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            height: 100vh;
-                            background-color: #6A3B8F;
-                            color: white;
-                            font-family: Arial, sans-serif;
-                            text-align: center;
-                            padding: 20px;
-                        ">
-                            <div>
-                                <h1 style="font-size: 24px; margin-bottom: 16px;">Acesso Negado</h1>
-                                <p style="font-size: 16px;">
-                                    Este aplicativo só pode ser acessado através do site habb2once.com.br ou localhost
-                                </p>
+                    // Verifica se a origem está na lista de permitidas
+                    const isValid = allowedOrigins.includes(parentOrigin);
+                    setIsValidOrigin(isValid);
+
+                    if (!isValid) {
+                        console.log('Origem bloqueada:', parentOrigin);
+                        document.body.innerHTML = `
+                            <div style="
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                background-color: #6A3B8F;
+                                color: white;
+                                font-family: Arial, sans-serif;
+                                text-align: center;
+                                padding: 20px;
+                            ">
+                                <div>
+                                    <h1 style="font-size: 24px; margin-bottom: 16px;">Acesso Negado</h1>
+                                    <p style="font-size: 16px;">
+                                        Este aplicativo só pode ser acessado através do site habb2once.com.br ou localhost
+                                    </p>
+                                    <p style="font-size: 14px; margin-top: 10px; color: #ccc;">
+                                        Origem detectada: ${parentOrigin}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
+                } else {
+                    // Se não estiver em um iframe, permite o acesso direto
+                    setIsValidOrigin(true);
                 }
-            } else {
-                // Se não estiver em um iframe, também bloqueia o acesso
-                setIsValidOrigin(false);
-                document.body.innerHTML = `
-                    <div style="
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                        background-color: #6A3B8F;
-                        color: white;
-                        font-family: Arial, sans-serif;
-                        text-align: center;
-                        padding: 20px;
-                    ">
-                        <div>
-                            <h1 style="font-size: 24px; margin-bottom: 16px;">Acesso Negado</h1>
-                            <p style="font-size: 16px;">
-                                Este aplicativo só pode ser acessado através do site habb2once.com.br ou localhost
-                            </p>
-                        </div>
-                    </div>
-                `;
+            } catch (error) {
+                console.error('Erro ao verificar origem:', error);
+                // Em caso de erro, permite o acesso
+                setIsValidOrigin(true);
             }
         };
 
