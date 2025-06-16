@@ -16,6 +16,7 @@
     "@headlessui/react": "^1.7.18",
     "@headlessui/tailwindcss": "^0.2.0",
     "bytebuffer": "^5.0.1",
+    "html2canvas": "^1.4.1",
     "pako": "^2.1.0",
     "pixi.js": "8.0.0-rc.10",
     "react": "^18.2.0",

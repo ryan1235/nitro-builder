@@ -1,3 +1,4 @@
+import html2canvas from 'html2canvas';
 import { FC, useEffect, useRef, useState } from 'react';
 import { MdAspectRatio, MdPlayArrow, MdPrint, MdRotateLeft, MdRotateRight, MdZoomIn, MdZoomOut } from 'react-icons/md';
 import { GetPixi, IObjectData, IVector3D, RoomObjectCategory, RoomObjectVariable, Vector3d } from '../../api';
@@ -263,64 +264,98 @@ export const EditorCanvas2Component: FC<{}> = props =>
     }
 
     const printObject = () => {
-        if(currentObjectId === -1) return;
-        
-        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
-        if(!roomObject) return;
+        if (!elementRef.current) return;
 
-        const pixi = GetPixi();
-        const canvas = pixi.canvas;
-        
-        // Garante que o canvas está renderizado
-        pixi.renderer.render(pixi.stage);
-        
-        // Captura a imagem com qualidade máxima e fundo transparente
-        const dataUrl = canvas.toDataURL('image/png', 1.0);
-        
-        // Cria um canvas temporário para remover o fundo branco
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        
-        // Desenha a imagem no canvas temporário
-        const img = new Image();
-        img.onload = () => {
-            tempCtx.drawImage(img, 0, 0);
-            
-            // Obtém os dados da imagem
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            const data = imageData.data;
-            
-            // Remove o fundo branco
-            for (let i = 0; i < data.length; i += 4) {
-                if (data[i] === 255 && data[i + 1] === 255 && data[i + 2] === 255) {
-                    data[i + 3] = 0; // Torna o pixel transparente
+        // Remove temporariamente os botões
+        const buttons = elementRef.current.querySelector('.flex.absolute') as HTMLElement;
+        if (buttons) buttons.style.display = 'none';
+
+        // Configurações do html2canvas
+        const options = {
+            backgroundColor: null,
+            scale: 2, // Aumenta a qualidade
+            logging: false,
+            useCORS: true,
+            allowTaint: true,
+            removeContainer: true,
+            onclone: (clonedDoc) => {
+                // Remove elementos indesejados do clone
+                const elementsToRemove = clonedDoc.querySelectorAll('.flex.absolute, .pointer-events-none');
+                elementsToRemove.forEach(el => el.remove());
+
+                // Ajusta o canvas para remover o piso
+                const canvas = clonedDoc.querySelector('canvas');
+                if (canvas) {
+                    // Aumenta a transparência do piso
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imageData.data;
+                        
+                        // Ajusta a transparência do piso (cor cinza escura)
+                        for (let i = 0; i < data.length; i += 4) {
+                            // Verifica se é um pixel do piso (cinza escuro)
+                            if (data[i] < 50 && data[i + 1] < 50 && data[i + 2] < 50) {
+                                data[i + 3] = 0; // Torna completamente transparente
+                            }
+                        }
+                        
+                        ctx.putImageData(imageData, 0, 0);
+                    }
                 }
             }
-            
-            tempCtx.putImageData(imageData, 0, 0);
-            
-            // Cria o link de download
-            const link = document.createElement('a');
-            link.download = `${assetData?.name || 'nitro-object'}-${Date.now()}.png`;
-            link.href = tempCanvas.toDataURL('image/png', 1.0);
-            link.click();
         };
-        
-        img.src = dataUrl;
+
+        // Captura a tela
+        html2canvas(elementRef.current, options).then(canvas => {
+            // Restaura os botões
+            if (buttons) buttons.style.display = 'flex';
+
+            // Cria um canvas temporário para processamento adicional
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            if (!tempCtx) return;
+
+            // Configura o canvas temporário
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+
+            // Desenha o canvas original
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Processa as sombras
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+
+            // Ajusta as sombras para ficarem mais suaves
+            for (let i = 0; i < data.length; i += 4) {
+                // Verifica se é uma sombra (pixels escuros com alpha)
+                if (data[i + 3] > 0 && data[i + 3] < 255) {
+                    // Suaviza a sombra
+                    data[i + 3] = Math.min(data[i + 3] * 1.2, 255);
+                }
+            }
+
+            tempCtx.putImageData(imageData, 0, 0);
+
+            // Converte para PNG e faz o download
+            const link = document.createElement('a');
+            link.download = 'habbo-room.png';
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+        });
     }
 
     return (
         <div className="relative w-full h-full bg-white" ref={ elementRef }>
             { isRoomReady &&
-                <Flex className="absolute gap-1 p-1 bg-[#6A3B8F] rounded-lg bg-opacity-90 bottom-4 left-1/2 transform -translate-x-1/2 justify-center shadow-lg whitespace-nowrap">
-                    <Flex className="gap-1 justify-center">
+                <Flex className="absolute gap-1.5 p-2 bg-[#6A3B8F] rounded-lg bg-opacity-95 bottom-4 left-1/2 transform -translate-x-1/2 justify-center shadow-xl backdrop-blur-sm border border-[#8A4BAF]/20">
+                    <Flex className="gap-1.5 justify-center">
                         <Tooltip content="Diminuir zoom">
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => zoomOut() }>
                                 <MdZoomOut className="w-4 h-4" />
                             </Button>
@@ -329,54 +364,54 @@ export const EditorCanvas2Component: FC<{}> = props =>
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => zoomIn() }>
-                                <MdZoomIn className="w-5 h-5" />
+                                <MdZoomIn className="w-4 h-4" />
                             </Button>
                         </Tooltip>
                         <Tooltip content="Alterar tamanho">
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => changeRoomGeometrySize() }>
-                                <MdAspectRatio className="w-5 h-5" />
+                                <MdAspectRatio className="w-4 h-4" />
                             </Button>
                         </Tooltip>
                         <Tooltip content="Usar mobi">
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => changeObjectState() }>
-                                <MdPlayArrow className="w-5 h-5" />
+                                <MdPlayArrow className="w-4 h-4" />
                             </Button>
                         </Tooltip>
                         <Tooltip content="Girar para esquerda">
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => rotateObject(false) }>
-                                <MdRotateLeft className="w-5 h-5" />
+                                <MdRotateLeft className="w-4 h-4" />
                             </Button>
                         </Tooltip>
                         <Tooltip content="Girar para direita">
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => rotateObject(true) }>
-                                <MdRotateRight className="w-5 h-5" />
+                                <MdRotateRight className="w-4 h-4" />
                             </Button>
                         </Tooltip>
                         <Tooltip content="Salvar imagem">
                             <Button
                                 color="dark"
                                 size="sm"
-                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+                                className="bg-[#8A4BAF] hover:bg-[#9B5CC0] text-white min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border border-[#9B5CC0]/30"
                                 onClick={ () => printObject() }>
-                                <MdPrint className="w-5 h-5" />
+                                <MdPrint className="w-4 h-4" />
                             </Button>
                         </Tooltip>
                     </Flex>
