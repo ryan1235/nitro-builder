@@ -1,5 +1,7 @@
 export * from './Badge';
 export * from './Button';
+export * from './card';
+export * from './classNames';
 export * from './DebouncedInput';
 export * from './Flex';
 export * from './GridColumn';
@@ -11,8 +13,7 @@ export * from './Option';
 export * from './Row';
 export * from './Select';
 export * from './Switch';
-export * from './card';
-export * from './classNames';
 export * from './table';
+export * from './Tooltip';
 export * from './types';
 export * from './types/col';

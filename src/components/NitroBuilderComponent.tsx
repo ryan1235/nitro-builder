@@ -1,5 +1,6 @@
 import { FC, PropsWithChildren } from 'react';
 import { useFileUploader, useNitroBundle, useNitroUrlLoader } from '../hooks';
+import { useIframeProtection } from '../hooks/useIframeProtection';
 import { Flex } from '../layout';
 import { EditorCanvas2Component } from './editor';
 import { ActionButtonsComponent } from './editor/action-buttons';
@@ -9,6 +10,11 @@ export const NitroBuilderComponent: FC<PropsWithChildren<{}>> = props =>
     const { assetData = null } = useNitroBundle();
     const {} = useFileUploader();
     const {} = useNitroUrlLoader();
+    const isValidOrigin = useIframeProtection();
+
+    if (!isValidOrigin) {
+        return null; // O hook já cuida de mostrar a mensagem de erro
+    }
 
     return (
         <Flex

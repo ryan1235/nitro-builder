@@ -1,0 +1,11 @@
+{
+    "tooltip": {
+        "zoomOut": "Diminuir zoom",
+        "zoomIn": "Aumentar zoom",
+        "changeSize": "Alterar tamanho",
+        "use": "Usar mobi",
+        "rotateLeft": "Girar para esquerda",
+        "rotateRight": "Girar para direita",
+        "print": "Salvar imagem"
+    }
+} 
