@@ -1,4 +1,3 @@
-import html2canvas from 'html2canvas';
 import { FC, useEffect, useRef, useState } from 'react';
 import { MdAspectRatio, MdPlayArrow, MdPrint, MdRotateLeft, MdRotateRight, MdZoomIn, MdZoomOut } from 'react-icons/md';
 import { GetPixi, IObjectData, IVector3D, RoomObjectCategory, RoomObjectVariable, Vector3d } from '../../api';
@@ -264,87 +263,65 @@ export const EditorCanvas2Component: FC<{}> = props =>
     }
 
     const printObject = () => {
-        if (!elementRef.current) return;
+        if(currentObjectId === -1) return;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return;
 
-        // Remove temporariamente os botões
-        const buttons = elementRef.current.querySelector('.flex.absolute') as HTMLElement;
-        if (buttons) buttons.style.display = 'none';
+        // Força uma atualização do estado atual
+        roomObject.model.forceRefresh();
 
-        // Configurações do html2canvas
-        const options = {
-            backgroundColor: null,
-            scale: 2, // Aumenta a qualidade
-            logging: false,
-            useCORS: true,
-            allowTaint: true,
-            removeContainer: true,
-            onclone: (clonedDoc) => {
-                // Remove elementos indesejados do clone
-                const elementsToRemove = clonedDoc.querySelectorAll('.flex.absolute, .pointer-events-none');
-                elementsToRemove.forEach(el => el.remove());
+        const pixi = GetPixi();
+        const canvas = pixi.canvas;
+        
+        // Garante que o canvas está renderizado com o estado atual
+        pixi.renderer.render(pixi.stage);
 
-                // Ajusta o canvas para remover o piso
-                const canvas = clonedDoc.querySelector('canvas');
-                if (canvas) {
-                    // Aumenta a transparência do piso
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const data = imageData.data;
-                        
-                        // Ajusta a transparência do piso (cor cinza escura)
-                        for (let i = 0; i < data.length; i += 4) {
-                            // Verifica se é um pixel do piso (cinza escuro)
-                            if (data[i] < 50 && data[i + 1] < 50 && data[i + 2] < 50) {
-                                data[i + 3] = 0; // Torna completamente transparente
-                            }
-                        }
-                        
-                        ctx.putImageData(imageData, 0, 0);
-                    }
-                }
-            }
-        };
+        // Captura a imagem com qualidade máxima e fundo transparente
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
 
-        // Captura a tela
-        html2canvas(elementRef.current, options).then(canvas => {
-            // Restaura os botões
-            if (buttons) buttons.style.display = 'flex';
+        // Cria um canvas temporário para processamento
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        if (!tempCtx) return;
 
-            // Cria um canvas temporário para processamento adicional
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            if (!tempCtx) return;
+        // Configura o canvas temporário
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
 
-            // Configura o canvas temporário
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
+        // Desenha a imagem no canvas temporário
+        const img = new Image();
+        img.onload = () => {
+            tempCtx.drawImage(img, 0, 0);
 
-            // Desenha o canvas original
-            tempCtx.drawImage(canvas, 0, 0);
-
-            // Processa as sombras
+            // Obtém os dados da imagem
             const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
             const data = imageData.data;
 
-            // Ajusta as sombras para ficarem mais suaves
+            // Remove o fundo branco
             for (let i = 0; i < data.length; i += 4) {
-                // Verifica se é uma sombra (pixels escuros com alpha)
-                if (data[i + 3] > 0 && data[i + 3] < 255) {
-                    // Suaviza a sombra
-                    data[i + 3] = Math.min(data[i + 3] * 1.2, 255);
+                if (data[i] === 255 && data[i + 1] === 255 && data[i + 2] === 255) {
+                    data[i + 3] = 0; // Torna o pixel transparente
                 }
             }
 
             tempCtx.putImageData(imageData, 0, 0);
 
-            // Converte para PNG e faz o download
+            // Cria o link de download com informações do estado
             const link = document.createElement('a');
-            link.download = 'habbo-room.png';
-            link.href = tempCanvas.toDataURL('image/png');
+            const direction = roomObject.getDirection().x;
+            const state = roomObject.model.getValue(RoomObjectVariable.FURNITURE_DATA) || 0;
+            const extras = roomObject.model.getValue(RoomObjectVariable.FURNITURE_EXTRAS) || '';
+            
+            // Nome do arquivo inclui informações do estado
+            const fileName = `${assetData?.name || 'nitro-object'}_dir${direction}_state${state}${extras ? '_' + extras : ''}_${Date.now()}.png`;
+            link.download = fileName;
+            link.href = tempCanvas.toDataURL('image/png', 1.0);
             link.click();
-        });
-    }
+        };
+        
+        img.src = dataUrl;
+    };
 
     return (
         <div className="relative w-full h-full bg-white" ref={ elementRef }>
