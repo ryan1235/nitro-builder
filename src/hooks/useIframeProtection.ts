@@ -9,9 +9,13 @@ export const useIframeProtection = () => {
             if (window.self !== window.top) {
                 // Obtém o domínio do iframe pai
                 const parentOrigin = window.parent.location.origin;
-                // Verifica se o domínio é habbonce.com.br
+                // Verifica se o domínio é habbonce.com.br ou localhost
                 const isValid = parentOrigin === 'https://habb2once.com.br' || 
-                              parentOrigin === 'http://habbon2ce.com.br';
+                              parentOrigin === 'http://habbon2ce.com.br' ||
+                              parentOrigin === 'http://localhost:3000' ||
+                              parentOrigin === 'http://localhost:5173' ||
+                              parentOrigin === 'http://127.0.0.1:3000' ||
+                              parentOrigin === 'http://127.0.0.1:5173';
                 
                 setIsValidOrigin(isValid);
 
@@ -32,7 +36,7 @@ export const useIframeProtection = () => {
                             <div>
                                 <h1 style="font-size: 24px; margin-bottom: 16px;">Acesso Negado</h1>
                                 <p style="font-size: 16px;">
-                                    Este aplicativo só pode ser acessado através do site habbonce.com.br
+                                    Este aplicativo só pode ser acessado através do site habb2once.com.br ou localhost
                                 </p>
                             </div>
                         </div>
@@ -56,7 +60,7 @@ export const useIframeProtection = () => {
                         <div>
                             <h1 style="font-size: 24px; margin-bottom: 16px;">Acesso Negado</h1>
                             <p style="font-size: 16px;">
-                                Este aplicativo só pode ser acessado através do site habbonce.com.br
+                                Este aplicativo só pode ser acessado através do site habb2once.com.br ou localhost
                             </p>
                         </div>
                     </div>
