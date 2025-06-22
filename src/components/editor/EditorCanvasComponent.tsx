@@ -1,6 +1,7 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { MdAspectRatio, MdPlayArrow, MdPrint, MdRotateLeft, MdRotateRight, MdZoomIn, MdZoomOut } from 'react-icons/md';
 import { GetPixi, IObjectData, IVector3D, RoomObjectCategory, RoomObjectVariable, Vector3d } from '../../api';
+import { GetLocalStorage } from '../../api/utils/GetLocalStorage';
 import { useLanguage, useNitroBundle } from '../../hooks';
 import { Button, Flex, Tooltip } from '../../layout';
 import { CenterRoom, CreatePlaneParser, FurnitureVisualization, GetRoomEngine, LegacyDataType, PrepareRoomEngine, RoomId, RoomObjectVisualizationFactory } from '../../nitro';
@@ -172,6 +173,26 @@ export const EditorCanvas2Component: FC<{}> = props =>
         }
     }, []);
 
+    useEffect(() => {
+        if(isRoomReady && assetData && currentObjectId !== -1) {
+            const autodownload = GetLocalStorage('autodownload');
+            console.log('[AUTO]', 'isRoomReady:', isRoomReady, 'assetData:', assetData, 'currentObjectId:', currentObjectId, 'autodownload:', autodownload);
+            if(autodownload) {
+                setTimeout(() => {
+                    // Aplica zoom 3x antes de salvar
+                    console.log('[AUTO]', 'Aplicando zoom 3x');
+                    GetRoomEngine().setRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID, 3);
+                    setTimeout(() => {
+                        console.log('[AUTO]', 'Chamando printObject()');
+                        printObject();
+                        window.localStorage.removeItem('autodownload');
+                        console.log('[AUTO]', 'autodownload removido do localStorage');
+                    }, 300); // Pequeno delay para garantir o zoom
+                }, 500); // 500ms para garantir renderização
+            }
+        }
+    }, [isRoomReady, assetData, currentObjectId]);
+
     const zoomIn = () =>
     {
         let scale = GetRoomEngine().getRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID);
@@ -263,64 +284,53 @@ export const EditorCanvas2Component: FC<{}> = props =>
     }
 
     const printObject = () => {
-        if(currentObjectId === -1) return;
-        
+        if(currentObjectId === -1) {
+            console.log('[AUTO]', 'printObject: currentObjectId === -1');
+            return;
+        }
         const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
-        if(!roomObject) return;
-
+        if(!roomObject) {
+            console.log('[AUTO]', 'printObject: roomObject não encontrado');
+            return;
+        }
         // Força uma atualização do estado atual
         roomObject.model.forceRefresh();
-
         const pixi = GetPixi();
         const canvas = pixi.canvas;
-        
         // Garante que o canvas está renderizado com o estado atual
         pixi.renderer.render(pixi.stage);
-
-        // Captura a imagem com qualidade máxima e fundo transparente
         const dataUrl = canvas.toDataURL('image/png', 1.0);
-
-        // Cria um canvas temporário para processamento
         const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        if (!tempCtx) return;
-
-        // Configura o canvas temporário
+        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        if (!tempCtx) {
+            console.log('[AUTO]', 'printObject: tempCtx não criado');
+            return;
+        }
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;
-
-        // Desenha a imagem no canvas temporário
         const img = new Image();
         img.onload = () => {
             tempCtx.drawImage(img, 0, 0);
-
-            // Obtém os dados da imagem
             const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
             const data = imageData.data;
-
-            // Remove o fundo branco
             for (let i = 0; i < data.length; i += 4) {
                 if (data[i] === 255 && data[i + 1] === 255 && data[i + 2] === 255) {
-                    data[i + 3] = 0; // Torna o pixel transparente
+                    data[i + 3] = 0;
                 }
             }
-
             tempCtx.putImageData(imageData, 0, 0);
-
-            // Cria o link de download com informações do estado
             const link = document.createElement('a');
             const direction = roomObject.getDirection().x;
             const state = roomObject.model.getValue(RoomObjectVariable.FURNITURE_DATA) || 0;
             const extras = roomObject.model.getValue(RoomObjectVariable.FURNITURE_EXTRAS) || '';
-            
-            // Nome do arquivo inclui informações do estado
             const fileName = `${assetData?.name || 'nitro-object'}_dir${direction}_state${state}${extras ? '_' + extras : ''}_${Date.now()}.png`;
             link.download = fileName;
             link.href = tempCanvas.toDataURL('image/png', 1.0);
             link.click();
+            console.log('[AUTO]', 'printObject: download iniciado', fileName);
         };
-        
         img.src = dataUrl;
+        console.log('[AUTO]', 'printObject: img.src setado');
     };
 
     return (

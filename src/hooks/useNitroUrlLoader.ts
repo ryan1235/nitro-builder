@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useBetween } from 'use-between';
+import { SetLocalStorage } from '../api/utils/SetLocalStorage';
 import { useNitroBundle } from './useNitroBundle';
 
 const useNitroUrlLoaderHook = () => {
@@ -10,6 +11,9 @@ const useNitroUrlLoaderHook = () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const mobi = urlParams.get('mobi');
+                const autodownload = urlParams.get('autodownload');
+
+                if (autodownload) SetLocalStorage('autodownload', autodownload);
 
                 if (!mobi) return;
 
