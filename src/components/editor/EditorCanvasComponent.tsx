@@ -7,6 +7,12 @@ import { Button, Flex, Tooltip } from '../../layout';
 import { CenterRoom, CreatePlaneParser, FurnitureVisualization, GetRoomEngine, LegacyDataType, PrepareRoomEngine, RoomId, RoomObjectVisualizationFactory } from '../../nitro';
 import { DispatchMouseEvent, SetActiveRoomId } from '../../utils';
 
+declare global {
+    interface Window {
+        lastNitroImageUrl?: string;
+    }
+}
+
 const CANVAS_ID = 1;
 const PREVIEW_OBJECT_ID = 1;
 const PREVIEW_OBJECT_LOCATION_X = 5;
@@ -324,10 +330,13 @@ export const EditorCanvas2Component: FC<{}> = props =>
             const state = roomObject.model.getValue(RoomObjectVariable.FURNITURE_DATA) || 0;
             const extras = roomObject.model.getValue(RoomObjectVariable.FURNITURE_EXTRAS) || '';
             const fileName = `${assetData?.name || 'nitro-object'}_dir${direction}_state${state}${extras ? '_' + extras : ''}_${Date.now()}.png`;
+            const finalDataUrl = tempCanvas.toDataURL('image/png', 1.0);
             link.download = fileName;
-            link.href = tempCanvas.toDataURL('image/png', 1.0);
+            link.href = finalDataUrl;
             link.click();
             console.log('[AUTO]', 'printObject: download iniciado', fileName);
+            console.log('[AUTO]', 'printObject: dataUrl para uso externo:', finalDataUrl);
+            window.lastNitroImageUrl = finalDataUrl;
         };
         img.src = dataUrl;
         console.log('[AUTO]', 'printObject: img.src setado');
