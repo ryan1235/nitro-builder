@@ -1,4 +1,5 @@
 import { FC, PropsWithChildren } from 'react';
+import { EditorConfig } from '../config';
 import { useFileUploader, useNitroBundle, useNitroUrlLoader } from '../hooks';
 import { useIframeProtection } from '../hooks/useIframeProtection';
 import { Flex } from '../layout';
@@ -28,7 +29,7 @@ export const NitroBuilderComponent: FC<PropsWithChildren<{}>> = props =>
                     <EditorCanvas2Component />
                 </Flex>
             </Flex>
-            { assetData != null && (
+            { assetData != null && !EditorConfig.shouldHideAllButtons() && (
                 <>
                     <ActionButtonsComponent />
                 </>

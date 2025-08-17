@@ -1,9 +1,15 @@
 import { FC } from 'react';
+import { EditorConfig } from '../../../config';
 import { useLanguage } from '../../../hooks';
 import { Button, Flex, Label } from '../../../layout';
 
 export const ActionButtonsComponent: FC<{}> = () => {
     const { localizeText } = useLanguage();
+
+    // Verifica se deve esconder todos os botões
+    if (EditorConfig.shouldHideAllButtons()) {
+        return null;
+    }
 
     return (
         <Flex

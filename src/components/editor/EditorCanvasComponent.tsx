@@ -2,6 +2,7 @@ import { FC, useEffect, useRef, useState } from 'react';
 import { MdAspectRatio, MdPlayArrow, MdPrint, MdRotateLeft, MdRotateRight, MdZoomIn, MdZoomOut } from 'react-icons/md';
 import { GetPixi, IObjectData, IVector3D, RoomObjectCategory, RoomObjectVariable, Vector3d } from '../../api';
 import { GetLocalStorage } from '../../api/utils/GetLocalStorage';
+import { EditorConfig } from '../../config';
 import { useLanguage, useNitroBundle } from '../../hooks';
 import { Button, Flex, Tooltip } from '../../layout';
 import { CenterRoom, CreatePlaneParser, FurnitureVisualization, GetRoomEngine, LegacyDataType, PrepareRoomEngine, RoomId, RoomObjectVisualizationFactory } from '../../nitro';
@@ -27,6 +28,15 @@ export const EditorCanvas2Component: FC<{}> = props =>
     const [ currentRoomId, setCurrentRoomId ] = useState<number>(RoomId.makeRoomPreviewerId(++PREVIEW_COUNTER));
     const [ currentObjectId, setCurrentObjectId ] = useState<number>(-1);
     const [ currentObjectCategory, setCurrentObjectCategory ] = useState<number>(RoomObjectCategory.MINIMUM);
+    
+    // Estados para controlar o status das ações automáticas
+    const [ autoUseMobiStatus, setAutoUseMobiStatus ] = useState<'idle' | 'running' | 'completed'>('idle');
+    const [ autoRotateStatus, setAutoRotateStatus ] = useState<'idle' | 'running' | 'completed'>('idle');
+    const [ autoRotateLeftStatus, setAutoRotateLeftStatus ] = useState<'idle' | 'running' | 'completed'>('idle');
+    const [ autoRotateRightStatus, setAutoRotateRightStatus ] = useState<'idle' | 'running' | 'completed'>('idle');
+    const [ autoZoomInStatus, setAutoZoomInStatus ] = useState<'idle' | 'running' | 'completed'>('idle');
+    const [ autoZoomOutStatus, setAutoZoomOutStatus ] = useState<'idle' | 'running' | 'completed'>('idle');
+    
     const { assetData = null, assets = null } = useNitroBundle();
     const elementRef = useRef<HTMLDivElement>();
 
@@ -182,7 +192,152 @@ export const EditorCanvas2Component: FC<{}> = props =>
     useEffect(() => {
         if(isRoomReady && assetData && currentObjectId !== -1) {
             const autodownload = GetLocalStorage('autodownload');
-            console.log('[AUTO]', 'isRoomReady:', isRoomReady, 'assetData:', assetData, 'currentObjectId:', currentObjectId, 'autodownload:', autodownload);
+            const autoUseMobi = GetLocalStorage('autoUseMobi');
+            
+            console.log('[AUTO]', 'isRoomReady:', isRoomReady, 'assetData:', assetData, 'currentObjectId:', currentObjectId, 'autodownload:', autodownload, 'autoUseMobi:', autoUseMobi);
+            
+            // Executa automaticamente a função "Usar mobi" o número de vezes especificado
+            if(autoUseMobi && Number(autoUseMobi) > 0) {
+                console.log(`[AUTO] Executando changeObjectState() ${autoUseMobi} vezes automaticamente`);
+                setAutoUseMobiStatus('running');
+                
+                let timesExecuted = 0;
+                const executeUseMobi = () => {
+                    if (timesExecuted < Number(autoUseMobi)) {
+                        console.log(`[AUTO] Execução ${timesExecuted + 1} de ${autoUseMobi}`);
+                        changeObjectState();
+                        timesExecuted++;
+                        
+                        if (timesExecuted < Number(autoUseMobi)) {
+                            // Agenda a próxima execução após 500ms
+                            setTimeout(executeUseMobi, 500);
+                        } else {
+                            // Remove do localStorage quando terminar
+                            window.localStorage.removeItem('autoUseMobi');
+                            setAutoUseMobiStatus('completed');
+                            console.log('[AUTO] Todas as execuções de autoUseMobi foram concluídas');
+                        }
+                    }
+                };
+                
+                // Inicia a primeira execução após 1 segundo
+                setTimeout(executeUseMobi, 1000);
+            }
+
+            // Executa rotação automática se solicitado (mais rápido - após 1s)
+            if(EditorConfig.shouldAutoRotateFurniture()) {
+                setAutoRotateStatus('running');
+                setTimeout(() => {
+                    console.log('[AUTO] Executando rotação automática');
+                    rotateObject(true); // Rotaciona para direita
+                    setAutoRotateStatus('completed');
+                }, 1000); // 1 segundo após renderização (mais rápido)
+            }
+
+            // Executa rotação para esquerda o número de vezes especificado (mais rápido - após 1.5s, intervalo 100ms)
+            const autoRotateLeft = EditorConfig.getAutoRotateLeft();
+            if(autoRotateLeft && autoRotateLeft > 0) {
+                setAutoRotateLeftStatus('running');
+                setTimeout(() => {
+                    console.log(`[AUTO] Executando rotação para esquerda ${autoRotateLeft} vezes`);
+                    let timesExecuted = 0;
+                    const executeRotateLeft = () => {
+                        if (timesExecuted < autoRotateLeft) {
+                            console.log(`[AUTO] Rotação esquerda ${timesExecuted + 1} de ${autoRotateLeft}`);
+                            rotateObject(false); // Rotaciona para esquerda
+                            timesExecuted++;
+                            
+                            if (timesExecuted < autoRotateLeft) {
+                                setTimeout(executeRotateLeft, 100); // Intervalo mais rápido (100ms)
+                            } else {
+                                window.localStorage.removeItem('autoRotateLeft');
+                                setAutoRotateLeftStatus('completed');
+                                console.log('[AUTO] Todas as rotações para esquerda foram concluídas');
+                            }
+                        }
+                    };
+                    executeRotateLeft();
+                }, 1500); // 1.5 segundos após renderização (mais rápido)
+            }
+
+            // Executa rotação para direita o número de vezes especificado (mais rápido - após 2s, intervalo 100ms)
+            const autoRotateRight = EditorConfig.getAutoRotateRight();
+            if(autoRotateRight && autoRotateRight > 0) {
+                setAutoRotateRightStatus('running');
+                setTimeout(() => {
+                    console.log(`[AUTO] Executando rotação para direita ${autoRotateRight} vezes`);
+                    let timesExecuted = 0;
+                    const executeRotateRight = () => {
+                        if (timesExecuted < autoRotateRight) {
+                            console.log(`[AUTO] Rotação direita ${timesExecuted + 1} de ${autoRotateRight}`);
+                            rotateObject(true); // Rotaciona para direita
+                            timesExecuted++;
+                            
+                            if (timesExecuted < autoRotateRight) {
+                                setTimeout(executeRotateRight, 100); // Intervalo mais rápido (100ms)
+                            } else {
+                                window.localStorage.removeItem('autoRotateRight');
+                                setAutoRotateRightStatus('completed');
+                                console.log('[AUTO] Todas as rotações para direita foram concluídas');
+                            }
+                        }
+                    };
+                    executeRotateRight();
+                }, 2000); // 2 segundos após renderização (mais rápido)
+            }
+
+            // Executa zoom automático para aumentar (mais rápido - após 2.5s, intervalo 50ms)
+            const autoZoomIn = EditorConfig.getAutoZoomIn();
+            if(autoZoomIn && autoZoomIn > 0) {
+                setAutoZoomInStatus('running');
+                setTimeout(() => {
+                    console.log(`[AUTO] Executando zoom in ${autoZoomIn} vezes`);
+                    let timesExecuted = 0;
+                    const executeZoomIn = () => {
+                        if (timesExecuted < autoZoomIn) {
+                            console.log(`[AUTO] Zoom in ${timesExecuted + 1} de ${autoZoomIn}`);
+                            zoomIn();
+                            timesExecuted++;
+                            
+                            if (timesExecuted < autoZoomIn) {
+                                setTimeout(executeZoomIn, 50); // Intervalo mais rápido (50ms)
+                            } else {
+                                window.localStorage.removeItem('autoZoomIn');
+                                setAutoZoomInStatus('completed');
+                                console.log('[AUTO] Todos os zooms in foram concluídos');
+                            }
+                        }
+                    };
+                    executeZoomIn();
+                }, 2500); // 2.5 segundos após renderização (mais rápido)
+            }
+
+            // Executa zoom automático para diminuir (mais rápido - após 3s, intervalo 50ms)
+            const autoZoomOut = EditorConfig.getAutoZoomOut();
+            if(autoZoomOut && autoZoomOut > 0) {
+                setAutoZoomOutStatus('running');
+                setTimeout(() => {
+                    console.log(`[AUTO] Executando zoom out ${autoZoomOut} vezes`);
+                    let timesExecuted = 0;
+                    const executeZoomOut = () => {
+                        if (timesExecuted < autoZoomOut) {
+                            console.log(`[AUTO] Zoom out ${timesExecuted + 1} de ${autoZoomOut}`);
+                            zoomOut();
+                            timesExecuted++;
+                            
+                            if (timesExecuted < autoZoomOut) {
+                                setTimeout(executeZoomOut, 50); // Intervalo mais rápido (50ms)
+                            } else {
+                                window.localStorage.removeItem('autoZoomOut');
+                                setAutoZoomOutStatus('completed');
+                                console.log('[AUTO] Todos os zooms out foram concluídos');
+                            }
+                        }
+                    };
+                    executeZoomOut();
+                }, 3000); // 3 segundos após renderização (mais rápido)
+            }
+            
             if(autodownload) {
                 setTimeout(() => {
                     // Aplica zoom 3x antes de salvar
@@ -243,6 +398,616 @@ export const EditorCanvas2Component: FC<{}> = props =>
     }
 
     const changeObjectState = () => GetRoomEngine().changeObjectState(currentRoomId, currentObjectId, currentObjectCategory);
+
+    /**
+     * Muda para um estado específico do mobiliário
+     * @param targetState - O estado específico para mudar (0, 1, 2, 3, etc.)
+     * @returns true se o estado foi aplicado com sucesso
+     */
+    const changeToSpecificState = (targetState: number): boolean => {
+        if(currentObjectId === -1) return false;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return false;
+
+        try {
+            // Tenta definir o estado específico
+            roomObject.model.setValue(RoomObjectVariable.FURNITURE_AUTOMATIC_STATE_INDEX, targetState);
+            roomObject.model.forceRefresh();
+            
+            // Verifica se o estado foi aplicado
+            const appliedState = getCurrentObjectState();
+            const success = appliedState === targetState;
+            
+            console.log('[DEBUG] Mudança para estado', targetState, '->', appliedState, 'Sucesso:', success);
+            return success;
+            
+        } catch(e) {
+            console.log('[DEBUG] Erro ao mudar para estado', targetState, ':', e);
+            return false;
+        }
+    };
+
+    /**
+     * Obtém o número máximo de estados (UsarMobis) disponíveis para o mobiliário atual
+     * @returns O número máximo de estados ou -1 se não for possível obter
+     */
+    const getMaxObjectStates = (): number => {
+        if(currentObjectId === -1) return -1;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return -1;
+
+        // Método 1: Tenta obter do assetData (mais confiável)
+        if(assetData && (assetData as any).visualization) {
+            try {
+                // Verifica se há dados de visualização com estados
+                const visualizationData = (assetData as any).visualization;
+                
+                // Verifica se há número de estados diretamente no asset
+                if(visualizationData.states !== undefined) {
+                    console.log('[DEBUG] Estados encontrados via assetData.visualization.states:', visualizationData.states);
+                    return visualizationData.states;
+                }
+                
+                // Verifica se há dados de animação com sequências
+                if(visualizationData.animation && visualizationData.animation.sequences) {
+                    const sequences = visualizationData.animation.sequences;
+                    if(sequences.length > 0) {
+                        console.log('[DEBUG] Estados encontrados via assetData.visualization.animation.sequences:', sequences.length);
+                        return sequences.length;
+                    }
+                }
+                
+                // Verifica se há direções com estados
+                if(visualizationData.directions && visualizationData.directions.length > 0) {
+                    const directions = visualizationData.directions;
+                    let maxStates = 0;
+                    
+                    directions.forEach((direction: any) => {
+                        if(direction.layers) {
+                            direction.layers.forEach((layer: any) => {
+                                if(layer.animation && layer.animation.sequences) {
+                                    maxStates = Math.max(maxStates, layer.animation.sequences.length);
+                                }
+                            });
+                        }
+                    });
+                    
+                    if(maxStates > 0) {
+                        console.log('[DEBUG] Estados encontrados via assetData.visualization.directions:', maxStates);
+                        return maxStates;
+                    }
+                }
+                
+                // Verifica se há dados de lógica com estados
+                if(assetData.logic && (assetData.logic as any).states !== undefined) {
+                    console.log('[DEBUG] Estados encontrados via assetData.logic.states:', (assetData.logic as any).states);
+                    return (assetData.logic as any).states;
+                }
+                
+                // Verifica se há dados de lógica com número de estados
+                if(assetData.logic && (assetData.logic as any).stateCount !== undefined) {
+                    console.log('[DEBUG] Estados encontrados via assetData.logic.stateCount:', (assetData.logic as any).stateCount);
+                    return (assetData.logic as any).stateCount;
+                }
+                
+                // Verifica se há dados de lógica com array de estados
+                if(assetData.logic && (assetData.logic as any).stateArray && Array.isArray((assetData.logic as any).stateArray)) {
+                    console.log('[DEBUG] Estados encontrados via assetData.logic.stateArray:', (assetData.logic as any).stateArray.length);
+                    return (assetData.logic as any).stateArray.length;
+                }
+                
+            } catch(e) {
+                console.log('[DEBUG] Erro ao acessar assetData.visualization:', e);
+            }
+        }
+
+        // Método 1.5: Inspeção profunda do assetData
+        if(assetData) {
+            try {
+                console.log('[DEBUG] Inspeção completa do assetData:', assetData);
+                
+                // Procura por qualquer propriedade que contenha "state" ou "states"
+                const assetKeys = Object.keys(assetData);
+                const stateKeys = assetKeys.filter(key => 
+                    key.toLowerCase().includes('state') || 
+                    key.toLowerCase().includes('count') ||
+                    key.toLowerCase().includes('max')
+                );
+                
+                if(stateKeys.length > 0) {
+                    console.log('[DEBUG] Chaves relacionadas a estados encontradas no asset:', stateKeys);
+                    
+                    for(const key of stateKeys) {
+                        try {
+                            // @ts-ignore
+                            const value = assetData[key];
+                            if(typeof value === 'number' && value > 0) {
+                                console.log('[DEBUG] Valor numérico encontrado em', key, ':', value);
+                                return value;
+                            }
+                            if(Array.isArray(value) && value.length > 0) {
+                                console.log('[DEBUG] Array encontrado em', key, ':', value.length);
+                                return value.length;
+                            }
+                        } catch(e) {
+                            // Ignora erros de acesso
+                        }
+                    }
+                }
+                
+                // Inspeção profunda da visualização
+                if((assetData as any).visualization) {
+                    const visKeys = Object.keys((assetData as any).visualization);
+                    console.log('[DEBUG] Chaves da visualização:', visKeys);
+                    
+                    for(const key of visKeys) {
+                        try {
+                            const value = (assetData as any).visualization[key];
+                            if(typeof value === 'number' && value > 0) {
+                                console.log('[DEBUG] Valor numérico encontrado em visualization.' + key, ':', value);
+                                return value;
+                            }
+                        } catch(e) {
+                            // Ignora erros de acesso
+                        }
+                    }
+                }
+                
+                // Inspeção profunda da lógica
+                if(assetData.logic) {
+                    const logicKeys = Object.keys(assetData.logic);
+                    console.log('[DEBUG] Chaves da lógica:', logicKeys);
+                    
+                    for(const key of logicKeys) {
+                        try {
+                            const value = (assetData.logic as any)[key];
+                            if(typeof value === 'number' && value > 0) {
+                                console.log('[DEBUG] Valor numérico encontrado em logic.' + key, ':', value);
+                                return value;
+                            }
+                        } catch(e) {
+                            // Ignora erros de acesso
+                        }
+                    }
+                }
+                
+            } catch(e) {
+                console.log('[DEBUG] Erro na inspeção profunda do assetData:', e);
+            }
+        }
+
+        // Método 2: Tenta obter do objeto da sala usando diferentes abordagens
+        try {
+            // Tenta acessar propriedades privadas usando type assertion
+            if((roomObject as any)._states && Array.isArray((roomObject as any)._states)) {
+                console.log('[DEBUG] Estados encontrados via _states:', (roomObject as any)._states.length);
+                return (roomObject as any)._states.length;
+            }
+            
+            // Tenta acessar propriedades privadas alternativas
+            if((roomObject as any)._visualization && (roomObject as any)._visualization._states) {
+                console.log('[DEBUG] Estados encontrados via _visualization._states:', (roomObject as any)._visualization._states.length);
+                return (roomObject as any)._visualization._states.length;
+            }
+            
+            // Tenta acessar propriedades privadas alternativas
+            if((roomObject as any)._visualization && (roomObject as any)._visualization._animationStates) {
+                console.log('[DEBUG] Estados encontrados via _visualization._animationStates:', (roomObject as any)._visualization._animationStates.length);
+                return (roomObject as any)._visualization._animationStates.length;
+            }
+        } catch(e) {
+            console.log('[DEBUG] Erro ao acessar propriedades privadas:', e);
+        }
+
+        // Método 3: Tenta obter do modelo usando diferentes variáveis
+        try {
+            const stateIndex = roomObject.model.getValue<number>(RoomObjectVariable.FURNITURE_AUTOMATIC_STATE_INDEX);
+            const furnitureData = roomObject.model.getValue<number>(RoomObjectVariable.FURNITURE_DATA);
+            
+            if(!isNaN(stateIndex) && !isNaN(furnitureData)) {
+                // Se temos dados de mobiliário, estimamos baseado no estado atual
+                const estimatedStates = Math.max(stateIndex + 1, furnitureData + 1, 1);
+                console.log('[DEBUG] Estados estimados via modelo (stateIndex:', stateIndex, 'furnitureData:', furnitureData, '):', estimatedStates);
+                return estimatedStates;
+            }
+        } catch(e) {
+            console.log('[DEBUG] Erro ao acessar modelo:', e);
+        }
+
+        // Método 4: Tenta obter via reflection/inspeção do objeto
+        try {
+            const objectKeys = Object.keys(roomObject);
+            const stateKeys = objectKeys.filter(key => 
+                key.toLowerCase().includes('state') || 
+                key.toLowerCase().includes('animation') ||
+                key.toLowerCase().includes('sequence')
+            );
+            
+            if(stateKeys.length > 0) {
+                console.log('[DEBUG] Chaves relacionadas a estados encontradas:', stateKeys);
+                
+                // Tenta acessar cada chave para encontrar arrays de estados
+                for(const key of stateKeys) {
+                    try {
+                        // @ts-ignore
+                        const value = roomObject[key];
+                        if(Array.isArray(value) && value.length > 0) {
+                            console.log('[DEBUG] Array de estados encontrado em', key, ':', value.length);
+                            return value.length;
+                        }
+                    } catch(e) {
+                        // Ignora erros de acesso
+                    }
+                }
+            }
+        } catch(e) {
+            console.log('[DEBUG] Erro na inspeção do objeto:', e);
+        }
+
+                            // Fallback inteligente: baseado no estado atual
+        const currentState = getCurrentObjectState();
+        if(currentState > 0) {
+            // Se o estado atual é maior que 0, o máximo deve ser pelo menos estado atual + 1
+            const estimatedMax = currentState + 1;
+            console.log('[DEBUG] Fallback inteligente: estado atual é', currentState, ', estimando máximo como', estimatedMax);
+            return estimatedMax;
+        }
+        
+        console.log('[DEBUG] Não foi possível determinar o número de estados, usando fallback padrão');
+        
+        // Executa debug automático para investigar
+        setTimeout(() => {
+            debugObjectStates();
+        }, 1000);
+        
+        // Força atualização dos estados para tentar detectar corretamente
+        setTimeout(() => {
+            forceStateUpdate();
+        }, 1500);
+        
+        // Testa valores de estado para determinar o máximo
+        setTimeout(() => {
+            testStateValues().then(testedMax => {
+                if(testedMax > 0) {
+                    console.log('[DEBUG] Teste automático concluído. Máximo de estados:', testedMax);
+                }
+            });
+        }, 2000);
+        
+        return 1; // Pelo menos 1 estado sempre existe
+        };
+
+        /**
+         * Força a atualização dos estados do mobiliário
+         * Útil para garantir que os estados sejam detectados corretamente
+         */
+        const forceStateUpdate = () => {
+            if(currentObjectId === -1) return;
+            
+            const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+            if(!roomObject) return;
+
+            try {
+                // Força refresh do modelo
+                roomObject.model.forceRefresh();
+                
+                // Força refresh da visualização
+                if(roomObject.visualization) {
+                    if((roomObject.visualization as any).forceRefresh) {
+                        (roomObject.visualization as any).forceRefresh();
+                    }
+                }
+                
+                console.log('[DEBUG] Forçada atualização dos estados do mobiliário');
+                
+                // Executa debug após atualização
+                setTimeout(() => {
+                    debugObjectStates();
+                }, 500);
+                
+            } catch(e) {
+                console.log('[DEBUG] Erro ao forçar atualização dos estados:', e);
+            }
+        };
+
+        /**
+         * Testa estados específicos para determinar o máximo
+         * @returns Promise com o número máximo de estados encontrado
+         */
+        const testStateValues = (): Promise<number> => {
+            return new Promise((resolve) => {
+                if(currentObjectId === -1) {
+                    resolve(-1);
+                    return;
+                }
+                
+                const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+                if(!roomObject) {
+                    resolve(-1);
+                    return;
+                }
+
+                try {
+                    // Salva o estado original
+                    const originalState = getCurrentObjectState();
+                    console.log('[DEBUG] Estado original salvo:', originalState);
+                    
+                    // Primeiro, volta para o estado 0
+                    const success = changeToSpecificState(0);
+                    if(!success) {
+                        console.log('[DEBUG] Não foi possível voltar ao estado 0');
+                        resolve(1); // Fallback
+                        return;
+                    }
+                    
+                    // Aguarda um pouco para garantir que voltou ao estado 0
+                    setTimeout(() => {
+                        const initialState = getCurrentObjectState();
+                        console.log('[DEBUG] Estado inicial:', initialState);
+                        
+                        // Testa estados específicos de 0 até encontrar o limite
+                        let maxState = 0;
+                        let foundLimit = false;
+                        
+                        // Função para testar o próximo estado
+                        const testNextState = (testState: number) => {
+                            if(testState > 20) { // Limite de segurança
+                                console.log('[DEBUG] Limite de segurança atingido');
+                                finishTest();
+                                return;
+                            }
+                            
+                            console.log('[DEBUG] Testando estado específico:', testState);
+                            
+                            // Tenta mudar para o estado específico
+                            const success = changeToSpecificState(testState);
+                            
+                            if(success) {
+                                // Estado aplicado com sucesso
+                                maxState = testState;
+                                console.log('[DEBUG] Estado', testState, 'aplicado com sucesso');
+                                
+                                // Testa o próximo estado
+                                setTimeout(() => {
+                                    testNextState(testState + 1);
+                                }, 100);
+                                
+                            } else {
+                                // Estado não pôde ser aplicado, chegamos ao limite
+                                console.log('[DEBUG] Estado', testState, 'não pôde ser aplicado. Limite atingido.');
+                                foundLimit = true;
+                                finishTest();
+                            }
+                        };
+                        
+                        // Função para finalizar o teste
+                        const finishTest = () => {
+                            // Restaura o estado original
+                            changeToSpecificState(originalState);
+                            
+                            const result = maxState + 1; // +1 porque os estados começam em 0
+                            console.log('[DEBUG] Teste concluído. Máximo estado aplicável:', maxState);
+                            console.log('[DEBUG] Máximo de estados encontrado:', result);
+                            
+                            resolve(result);
+                        };
+                        
+                        // Inicia o teste com o estado 0
+                        testNextState(0);
+                        
+                    }, 200);
+                    
+                } catch(e) {
+                    console.log('[DEBUG] Erro no teste de estados:', e);
+                    resolve(-1);
+                }
+            });
+        };
+
+    /**
+     * Testa e valida os estados do mobiliário para debug
+     * @returns Informações de debug sobre os estados
+     */
+    const debugObjectStates = () => {
+        if(currentObjectId === -1) return null;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return null;
+
+        const debugInfo: any = {
+            timestamp: new Date().toISOString(),
+            objectId: currentObjectId,
+            objectType: roomObject.type,
+            
+            // Informações do asset
+            assetName: assetData?.name,
+            assetVisualizationType: assetData?.visualizationType,
+            
+            // Estados calculados
+            calculatedMaxStates: getMaxObjectStates(),
+            calculatedCurrentState: getCurrentObjectState(),
+            
+            // Propriedades do objeto
+            objectKeys: Object.keys(roomObject),
+            modelKeys: Object.keys(roomObject.model),
+            
+            // Valores do modelo
+            modelValues: {}
+        };
+
+        // Coleta todos os valores do modelo
+        try {
+            const modelKeys = Object.keys(roomObject.model);
+            modelKeys.forEach(key => {
+                try {
+                    // @ts-ignore
+                    const value = roomObject.model[key];
+                    if(value !== undefined && value !== null) {
+                        debugInfo.modelValues[key] = value;
+                    }
+                } catch(e) {
+                    debugInfo.modelValues[key] = 'ERRO_ACESSO';
+                }
+            });
+        } catch(e) {
+            debugInfo.modelValuesError = e.message;
+        }
+
+        // Inspeção profunda do objeto
+        try {
+            if((roomObject as any)._visualization) {
+                debugInfo.visualizationKeys = Object.keys((roomObject as any)._visualization);
+                if((roomObject as any)._visualization._data) {
+                    debugInfo.visualizationDataKeys = Object.keys((roomObject as any)._visualization._data);
+                }
+            }
+        } catch(e) {
+            debugInfo.visualizationError = e.message;
+        }
+
+        console.log('[DEBUG] Informações completas de debug dos estados:', debugInfo);
+        return debugInfo;
+    };
+
+    /**
+     * Obtém informações detalhadas sobre o mobiliário
+     * @returns Objeto com informações detalhadas do mobiliário
+     */
+    const getDetailedObjectInfo = () => {
+        if(currentObjectId === -1) return null;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return null;
+
+        try {
+            const info: any = {
+                // Informações básicas
+                id: currentObjectId,
+                type: roomObject.type,
+                category: currentObjectCategory,
+                
+                // Posição e direção
+                location: roomObject.getLocation(),
+                direction: roomObject.getDirection(),
+                
+                // Estados
+                currentState: getCurrentObjectState(),
+                maxStates: getMaxObjectStates(),
+                
+                // Dados do modelo
+                modelData: roomObject.model.getValue(RoomObjectVariable.FURNITURE_DATA) || 0,
+                extras: roomObject.model.getValue(RoomObjectVariable.FURNITURE_EXTRAS) || '',
+                stateIndex: roomObject.model.getValue<number>(RoomObjectVariable.FURNITURE_AUTOMATIC_STATE_INDEX) || 0,
+                
+                // Informações de visualização
+                visualizationType: roomObject.visualization?.constructor?.name || 'Unknown',
+                
+                // Zoom atual
+                currentZoom: GetRoomEngine().getRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID),
+                
+                // Informações da sala
+                roomId: currentRoomId,
+                canvasId: CANVAS_ID
+            };
+
+            // Tenta obter informações adicionais do objeto
+            try {
+                // Acessando propriedades privadas para mais informações
+                if((roomObject as any)._states) {
+                    info.statesArray = (roomObject as any)._states.length;
+                    info.statesContent = (roomObject as any)._states;
+                }
+                
+                if((roomObject as any)._visualization) {
+                    info.visualizationData = (roomObject as any)._visualization._data;
+                }
+            } catch(e) {
+                info.privateAccessError = e.message;
+            }
+
+            return info;
+        } catch(e) {
+            console.log('[DEBUG] Erro ao obter informações detalhadas:', e);
+            return null;
+        }
+    };
+
+    /**
+     * Obtém o estado atual do mobiliário
+     * @returns O estado atual ou -1 se não for possível obter
+     */
+    const getCurrentObjectState = (): number => {
+        if(currentObjectId === -1) return -1;
+        
+        const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+        if(!roomObject) return -1;
+
+        try {
+            // Método 1: Tenta obter do modelo usando diferentes variáveis
+            const stateIndex = roomObject.model.getValue<number>(RoomObjectVariable.FURNITURE_AUTOMATIC_STATE_INDEX);
+            const furnitureData = roomObject.model.getValue<number>(RoomObjectVariable.FURNITURE_DATA);
+            
+            if(!isNaN(stateIndex)) {
+                console.log('[DEBUG] Estado atual via FURNITURE_AUTOMATIC_STATE_INDEX:', stateIndex);
+                return stateIndex;
+            }
+            
+            if(!isNaN(furnitureData)) {
+                console.log('[DEBUG] Estado atual via FURNITURE_DATA:', furnitureData);
+                return furnitureData;
+            }
+            
+            // Método 2: Tenta obter de propriedades privadas da visualização
+            try {
+                if((roomObject as any)._visualization) {
+                    if((roomObject as any)._visualization._currentState !== undefined) {
+                        console.log('[DEBUG] Estado atual via _visualization._currentState:', (roomObject as any)._visualization._currentState);
+                        return (roomObject as any)._visualization._currentState;
+                    }
+                    
+                    if((roomObject as any)._visualization._state !== undefined) {
+                        console.log('[DEBUG] Estado atual via _visualization._state:', (roomObject as any)._visualization._state);
+                        return (roomObject as any)._visualization._state;
+                    }
+                    
+                    if((roomObject as any)._visualization._animationState !== undefined) {
+                        console.log('[DEBUG] Estado atual via _visualization._animationState:', (roomObject as any)._visualization._animationState);
+                        return (roomObject as any)._visualization._animationState;
+                    }
+                    
+                    if((roomObject as any)._visualization._data && (roomObject as any)._visualization._data.state !== undefined) {
+                        console.log('[DEBUG] Estado atual via _visualization._data.state:', (roomObject as any)._visualization._data.state);
+                        return (roomObject as any)._visualization._data.state;
+                    }
+                }
+            } catch(e) {
+                console.log('[DEBUG] Erro ao acessar propriedades privadas da visualização:', e);
+            }
+            
+            // Método 3: Tenta obter do assetData se disponível
+            if(assetData && (assetData as any).visualization) {
+                try {
+                    // Verifica se há estado atual no asset
+                    if((assetData as any).visualization.currentState !== undefined) {
+                        console.log('[DEBUG] Estado atual via assetData.visualization.currentState:', (assetData as any).visualization.currentState);
+                        return (assetData as any).visualization.currentState;
+                    }
+                } catch(e) {
+                    console.log('[DEBUG] Erro ao acessar assetData.visualization.currentState:', e);
+                }
+            }
+            
+            // Método 4: Fallback para 0 (estado inicial)
+            console.log('[DEBUG] Estado atual não encontrado, usando fallback 0');
+            return 0;
+            
+        } catch(e) {
+            console.log('[DEBUG] Erro ao obter estado atual:', e);
+            return 0;
+        }
+    };
 
     const rotateObject = (clockwise: boolean) => {
         if(currentObjectId === -1) return;
@@ -344,7 +1109,167 @@ export const EditorCanvas2Component: FC<{}> = props =>
 
     return (
         <div className="relative w-full h-full bg-white" ref={ elementRef }>
-            { isRoomReady &&
+            {/* Informações de estado escondidas (canto superior direito) */}
+            { isRoomReady && assetData && currentObjectId !== -1 && !EditorConfig.shouldHideStateInfo() && (() => {
+                const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
+                const detailedInfo = getDetailedObjectInfo();
+                return (
+                    <div className="absolute top-4 right-4 bg-black bg-opacity-90 text-white text-xs p-4 rounded-lg font-mono max-w-sm overflow-y-auto max-h-96">
+                        <div className="mb-3 font-bold text-sm border-b border-gray-600 pb-2">📊 Info Detalhada do Mobiliário</div>
+                        
+                        {/* Informações básicas */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-yellow-300">📋 Básico</div>
+                            <div>Nome: {assetData.name}</div>
+                            <div>ID: {detailedInfo?.id || 'N/A'}</div>
+                            <div>Tipo: {detailedInfo?.type || 'N/A'}</div>
+                            <div>Categoria: {detailedInfo?.category || 'N/A'}</div>
+                        </div>
+
+                        {/* Estados */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-green-300">🔄 Estados</div>
+                            <div>Atual: {getCurrentObjectState()}</div>
+                            <div>Máximo: {getMaxObjectStates()}</div>
+                            <div>Índice: {detailedInfo?.stateIndex || 'N/A'}</div>
+                            <div>Dados: {detailedInfo?.modelData || 'N/A'}</div>
+                            <div>Extras: {detailedInfo?.extras || 'Nenhum'}</div>
+                        </div>
+
+                        {/* Status das Ações Automáticas */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-cyan-300">⚡ Ações Automáticas</div>
+                            <div className="text-xs space-y-1">
+                                {GetLocalStorage('autoUseMobi') && Number(GetLocalStorage('autoUseMobi')) > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span>🎯 Usar Mobi:</span>
+                                        <span className={autoUseMobiStatus === 'completed' ? 'text-green-400' : autoUseMobiStatus === 'running' ? 'text-yellow-300' : 'text-gray-400'}>
+                                            {autoUseMobiStatus === 'completed' ? '✅ Concluído' : autoUseMobiStatus === 'running' ? '🔄 Executando...' : '⏸️ Aguardando'}
+                                        </span>
+                                    </div>
+                                )}
+                                {EditorConfig.shouldAutoRotateFurniture() && (
+                                    <div className="flex items-center gap-2">
+                                        <span>🔄 Rotação:</span>
+                                        <span className={autoRotateStatus === 'completed' ? 'text-green-400' : autoRotateStatus === 'running' ? 'text-yellow-300' : 'text-gray-400'}>
+                                            {autoRotateStatus === 'completed' ? '✅ Concluído' : autoRotateStatus === 'running' ? '🔄 Executando...' : '⏸️ Aguardando'}
+                                        </span>
+                                    </div>
+                                )}
+                                {EditorConfig.getAutoRotateLeft() > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span>⬅️ Rot. Esquerda:</span>
+                                        <span className={autoRotateLeftStatus === 'completed' ? 'text-green-400' : autoRotateLeftStatus === 'running' ? 'text-yellow-300' : 'text-gray-400'}>
+                                            {autoRotateLeftStatus === 'completed' ? '✅ Concluído' : autoRotateLeftStatus === 'running' ? '🔄 Executando...' : '⏸️ Aguardando'}
+                                        </span>
+                                    </div>
+                                )}
+                                {EditorConfig.getAutoRotateRight() > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span>➡️ Rot. Direita:</span>
+                                        <span className={autoRotateRightStatus === 'completed' ? 'text-green-400' : autoRotateRightStatus === 'running' ? 'text-yellow-300' : 'text-gray-400'}>
+                                            {autoRotateRightStatus === 'completed' ? '✅ Concluído' : autoRotateRightStatus === 'running' ? '🔄 Executando...' : '⏸️ Aguardando'}
+                                        </span>
+                                    </div>
+                                )}
+                                {EditorConfig.getAutoZoomIn() > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span>🔍 Zoom In:</span>
+                                        <span className={autoZoomInStatus === 'completed' ? 'text-green-400' : autoZoomInStatus === 'running' ? 'text-yellow-300' : 'text-gray-400'}>
+                                            {autoZoomInStatus === 'completed' ? '✅ Concluído' : autoZoomInStatus === 'running' ? '🔄 Executando...' : '⏸️ Aguardando'}
+                                        </span>
+                                    </div>
+                                )}
+                                {EditorConfig.getAutoZoomOut() > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span>🔍 Zoom Out:</span>
+                                        <span className={autoZoomOutStatus === 'completed' ? 'text-green-400' : autoZoomOutStatus === 'running' ? 'text-yellow-300' : 'text-gray-400'}>
+                                            {autoZoomOutStatus === 'completed' ? '✅ Concluído' : autoZoomOutStatus === 'running' ? '🔄 Executando...' : '⏸️ Aguardando'}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Posição e direção */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-blue-300">📍 Posição</div>
+                            <div>X: {roomObject?.getLocation()?.x || 0}</div>
+                            <div>Y: {roomObject?.getLocation()?.y || 0}</div>
+                            <div>Z: {roomObject?.getLocation()?.z || 0}</div>
+                            <div>Direção: {roomObject?.getDirection()?.x || 0}°</div>
+                        </div>
+
+                        {/* Zoom e renderização */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-purple-300">🔍 Renderização</div>
+                            <div>Zoom: {detailedInfo?.currentZoom || 'N/A'}</div>
+                            <div>Canvas: {detailedInfo?.canvasId || 'N/A'}</div>
+                            <div>Sala: {detailedInfo?.roomId || 'N/A'}</div>
+                        </div>
+
+                        {/* Informações técnicas */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-orange-300">⚙️ Técnico</div>
+                            <div>Visualização: {detailedInfo?.visualizationType || 'N/A'}</div>
+                            <div>Array Estados: {detailedInfo?.statesArray || 'N/A'}</div>
+                        </div>
+
+                        {/* Dados do asset */}
+                        <div className="mb-2">
+                            <div className="font-semibold text-pink-300">🎨 Asset</div>
+                            <div>Tipo Vis: {assetData.visualizationType}</div>
+                            <div>Lógica: {assetData.logicType}</div>
+                            <div>Direções: {(assetData as any).directions?.length || 'N/A'}</div>
+                        </div>
+
+                        {/* Timestamp */}
+                        <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-600">
+                            Atualizado: {new Date().toLocaleTimeString()}
+                        </div>
+                        
+                        {/* Botões de Debug */}
+                        <div className="mt-2 pt-2 border-t border-gray-600 space-y-1">
+                            <button 
+                                onClick={debugObjectStates}
+                                className="w-full px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                            >
+                                🔍 Debug Estados
+                            </button>
+                            <button 
+                                onClick={forceStateUpdate}
+                                className="w-full px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                            >
+                                🔄 Forçar Atualização
+                            </button>
+                            <button 
+                                onClick={testStateValues}
+                                className="w-full px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                            >
+                                🧪 Testar Estados
+                            </button>
+                        </div>
+                        
+                        {/* Teste de Estados Específicos */}
+                        <div className="mt-2 pt-2 border-t border-gray-600 space-y-1">
+                            <div className="text-xs text-gray-400 mb-1">Testar Estado Específico:</div>
+                            <div className="flex gap-1">
+                                {[0, 1, 2, 3, 4, 5].map(state => (
+                                    <button 
+                                        key={state}
+                                        onClick={() => changeToSpecificState(state)}
+                                        className="flex-1 px-1 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded transition-colors"
+                                    >
+                                        {state}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            { isRoomReady && !EditorConfig.shouldHideAllButtons() && !EditorConfig.shouldHideMenu() &&
                 <Flex className="absolute gap-1.5 p-2 bg-[#6A3B8F] rounded-lg bg-opacity-95 bottom-4 left-1/2 transform -translate-x-1/2 justify-center shadow-xl backdrop-blur-sm border border-[#8A4BAF]/20">
                     <Flex className="gap-1.5 justify-center">
                         <Tooltip content="Diminuir zoom">

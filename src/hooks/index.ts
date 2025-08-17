@@ -1,5 +1,6 @@
 export * from './useEventDispatcher';
 export * from './useFileUploader';
+export * from './useItemUsage';
 export * from './useLanguage';
 export * from './useNitroBundle';
 export * from './useNitroEvent';
