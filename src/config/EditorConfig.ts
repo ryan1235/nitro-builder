@@ -119,6 +119,10 @@ export class EditorConfig
     {
         try 
         {
+            const shadow = localStorage.getItem('shadow');
+
+            if(shadow && JSON.parse(shadow) === true) return false;
+
             const hideMenu = localStorage.getItem('hideMenu');
             return hideMenu ? JSON.parse(hideMenu) : this.HIDE_MENU;
         }
