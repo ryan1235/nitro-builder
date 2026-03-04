@@ -23,6 +23,9 @@ let PREVIEW_COUNTER = 0;
 export const EditorCanvas2Component: FC<{}> = props =>
 {
     const { localizeText } = useLanguage();
+    const [ previewBackground, setPreviewBackground ] = useState<string>('transparent');
+    const [ isFloorVisible, setIsFloorVisible ] = useState<boolean>(true);
+    const [ toolbarColor, setToolbarColor ] = useState<string>('#6A3B8F');
     const [ isReady, setIsReady ] = useState<boolean>(false);
     const [ isRoomReady, setIsRoomReady ] = useState<boolean>(false);
     const [ currentRoomId, setCurrentRoomId ] = useState<number>(RoomId.makeRoomPreviewerId(++PREVIEW_COUNTER));
@@ -39,6 +42,17 @@ export const EditorCanvas2Component: FC<{}> = props =>
     
     const { assetData = null, assets = null } = useNitroBundle();
     const elementRef = useRef<HTMLDivElement>();
+
+    useEffect(() =>
+    {
+        const storedBackground = GetLocalStorage<string>('background');
+        const storedFloorVisibility = GetLocalStorage<boolean>('floor');
+        const storedToolbarColor = GetLocalStorage<string>('toolbarColor');
+
+        if(storedBackground) setPreviewBackground(storedBackground);
+        if(storedFloorVisibility !== null) setIsFloorVisible(storedFloorVisibility);
+        if(storedToolbarColor) setToolbarColor(storedToolbarColor);
+    }, []);
 
     useEffect(() =>
     {
@@ -128,6 +142,7 @@ export const EditorCanvas2Component: FC<{}> = props =>
         const pixi = GetPixi();
         const displayObject = GetRoomEngine().getRoomInstanceDisplay(currentRoomId, CANVAS_ID, width, height, 64);
 
+        GetRoomEngine().updateRoomInstancePlaneVisibility(currentRoomId, isFloorVisible, isFloorVisible);
         GetRoomEngine().setRoomInstanceRenderingCanvasMask(currentRoomId, CANVAS_ID, true);
         GetRoomEngine().setRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID, 2);
         pixi.stage.addChild(displayObject);
@@ -144,7 +159,14 @@ export const EditorCanvas2Component: FC<{}> = props =>
             GetRoomEngine().destroyRoom(roomId);
             setIsReady(false);
         }
-    }, [ currentRoomId, isReady ]);
+    }, [ currentRoomId, isReady, isFloorVisible ]);
+
+    useEffect(() =>
+    {
+        if(!isRoomReady) return;
+
+        GetRoomEngine().updateRoomInstancePlaneVisibility(currentRoomId, isFloorVisible, isFloorVisible);
+    }, [ isRoomReady, currentRoomId, isFloorVisible ]);
 
     useEffect(() =>
     {
@@ -1054,142 +1076,87 @@ export const EditorCanvas2Component: FC<{}> = props =>
         roomObject.model.forceRefresh();
     }
 
-    // Função para detectar pixels coloridos nas bordas da imagem
-    const hasColoredPixelsOnBorders = (imageData: ImageData): boolean => {
-        const data = imageData.data;
-        const width = imageData.width;
-        const height = imageData.height;
-        
-        // Verifica bordas superior e inferior
-        for (let x = 0; x < width; x++) {
-            // Borda superior
-            const topIndex = (0 * width + x) * 4;
-            if (data[topIndex + 3] > 0) { // Se não é transparente
-                const r = data[topIndex];
-                const g = data[topIndex + 1];
-                const b = data[topIndex + 2];
-                // Se não é branco puro (255, 255, 255)
-                if (!(r === 255 && g === 255 && b === 255)) {
-                    console.log('[BORDER_CHECK]', 'Pixel colorido encontrado na borda superior:', { x, r, g, b });
-                    return true;
-                }
-            }
-            
-            // Borda inferior
-            const bottomIndex = ((height - 1) * width + x) * 4;
-            if (data[bottomIndex + 3] > 0) { // Se não é transparente
-                const r = data[bottomIndex];
-                const g = data[bottomIndex + 1];
-                const b = data[bottomIndex + 2];
-                // Se não é branco puro (255, 255, 255)
-                if (!(r === 255 && g === 255 && b === 255)) {
-                    console.log('[BORDER_CHECK]', 'Pixel colorido encontrado na borda inferior:', { x, r, g, b });
-                    return true;
-                }
-            }
-        }
-        
-        // Verifica bordas esquerda e direita
-        for (let y = 0; y < height; y++) {
-            // Borda esquerda
-            const leftIndex = (y * width + 0) * 4;
-            if (data[leftIndex + 3] > 0) { // Se não é transparente
-                const r = data[leftIndex];
-                const g = data[leftIndex + 1];
-                const b = data[leftIndex + 2];
-                // Se não é branco puro (255, 255, 255)
-                if (!(r === 255 && g === 255 && b === 255)) {
-                    console.log('[BORDER_CHECK]', 'Pixel colorido encontrado na borda esquerda:', { y, r, g, b });
-                    return true;
-                }
-            }
-            
-            // Borda direita
-            const rightIndex = (y * width + (width - 1)) * 4;
-            if (data[rightIndex + 3] > 0) { // Se não é transparente
-                const r = data[rightIndex];
-                const g = data[rightIndex + 1];
-                const b = data[rightIndex + 2];
-                // Se não é branco puro (255, 255, 255)
-                if (!(r === 255 && g === 255 && b === 255)) {
-                    console.log('[BORDER_CHECK]', 'Pixel colorido encontrado na borda direita:', { y, r, g, b });
-                    return true;
-                }
-            }
-        }
-        
-        console.log('[BORDER_CHECK]', 'Nenhum pixel colorido encontrado nas bordas');
-        return false;
-    };
-
-    // Função para processar e baixar a imagem com verificação de bordas
-    const processAndDownloadImage = (canvas: HTMLCanvasElement, roomObject: any, currentZoom: number, maxZoom: number = 10) => {
-        const pixi = GetPixi();
+    const createObjectOnlySnapshot = (canvas: HTMLCanvasElement): string =>
+    {
+        const chromaKey = { r: 1, g: 255, b: 1 };
+        const tolerance = 10;
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-        
-        if (!tempCtx) {
-            console.log('[AUTO]', 'processAndDownloadImage: tempCtx não criado');
-            return;
-        }
-        
+
+        if(!tempCtx) return canvas.toDataURL('image/png', 1.0);
+
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;
-        const img = new Image();
-        
-        img.onload = () => {
-            tempCtx.drawImage(img, 0, 0);
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            // Verifica se há pixels coloridos nas bordas
-            const hasColoredBorders = hasColoredPixelsOnBorders(imageData);
-            
-            if (hasColoredBorders && currentZoom > 1) {
-                console.log('[AUTO]', `Imagem cortada detectada no zoom ${currentZoom}, reduzindo zoom para ${currentZoom - 1}`);
-                
-                // Reduz o zoom e tenta novamente
-                const newZoom = currentZoom - 1;
-                GetRoomEngine().setRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID, newZoom);
-                
-                // Aguarda um pouco para o zoom ser aplicado e tenta novamente
-                setTimeout(() => {
-                    roomObject.model.forceRefresh();
-                    pixi.renderer.render(pixi.stage);
-                    const newDataUrl = canvas.toDataURL('image/png', 1.0);
-                    processAndDownloadImage(canvas, roomObject, newZoom, maxZoom);
-                }, 200);
-                return;
-            }
-            
-            // Se chegou aqui, a imagem está OK ou é o zoom mínimo
-            console.log('[AUTO]', `Processando imagem com zoom ${currentZoom} (${hasColoredBorders ? 'cortada mas zoom mínimo' : 'sem cortes'})`);
-            
-            // Processa a imagem removendo fundo branco
-            const data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                if (data[i] === 255 && data[i + 1] === 255 && data[i + 2] === 255) {
-                    data[i + 3] = 0;
+
+        tempCtx.fillStyle = `rgb(${ chromaKey.r }, ${ chromaKey.g }, ${ chromaKey.b })`;
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tempCtx.drawImage(canvas, 0, 0);
+
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imageData.data;
+
+        let minX = tempCanvas.width;
+        let minY = tempCanvas.height;
+        let maxX = -1;
+        let maxY = -1;
+
+        for(let y = 0; y < tempCanvas.height; y++)
+        {
+            for(let x = 0; x < tempCanvas.width; x++)
+            {
+                const index = ((y * tempCanvas.width) + x) * 4;
+                const red = data[index];
+                const green = data[index + 1];
+                const blue = data[index + 2];
+                const alpha = data[index + 3];
+
+                const isChromaPixel =
+                    (Math.abs(red - chromaKey.r) <= tolerance) &&
+                    (Math.abs(green - chromaKey.g) <= tolerance) &&
+                    (Math.abs(blue - chromaKey.b) <= tolerance);
+
+                if((alpha > 0) && isChromaPixel)
+                {
+                    data[index + 3] = 0;
+
+                    continue;
+                }
+
+                if(alpha > 0)
+                {
+                    if(x < minX) minX = x;
+                    if(y < minY) minY = y;
+                    if(x > maxX) maxX = x;
+                    if(y > maxY) maxY = y;
                 }
             }
-            tempCtx.putImageData(imageData, 0, 0);
-            
-            // Cria e executa o download
-            const link = document.createElement('a');
-            const direction = roomObject.getDirection().x;
-            const state = roomObject.model.getValue(RoomObjectVariable.FURNITURE_DATA) || 0;
-            const extras = roomObject.model.getValue(RoomObjectVariable.FURNITURE_EXTRAS) || '';
-            const fileName = `${assetData?.name || 'nitro-object'}_dir${direction}_state${state}${extras ? '_' + extras : ''}_zoom${currentZoom}_${Date.now()}.png`;
-            const finalDataUrl = tempCanvas.toDataURL('image/png', 1.0);
-            link.download = fileName;
-            link.href = finalDataUrl;
-            link.click();
-            console.log('[AUTO]', 'printObject: download iniciado', fileName);
-            console.log('[AUTO]', 'printObject: dataUrl para uso externo:', finalDataUrl);
-            window.lastNitroImageUrl = finalDataUrl;
-        };
-        
-        img.src = canvas.toDataURL('image/png', 1.0);
-    };
+        }
+
+        tempCtx.putImageData(imageData, 0, 0);
+
+        if(maxX < minX || maxY < minY) return tempCanvas.toDataURL('image/png', 1.0);
+
+        const padding = 2;
+        minX = Math.max(0, minX - padding);
+        minY = Math.max(0, minY - padding);
+        maxX = Math.min(tempCanvas.width - 1, maxX + padding);
+        maxY = Math.min(tempCanvas.height - 1, maxY + padding);
+
+        const cropWidth = (maxX - minX) + 1;
+        const cropHeight = (maxY - minY) + 1;
+
+        const croppedCanvas = document.createElement('canvas');
+        const croppedCtx = croppedCanvas.getContext('2d', { willReadFrequently: true });
+
+        if(!croppedCtx) return tempCanvas.toDataURL('image/png', 1.0);
+
+        croppedCanvas.width = cropWidth;
+        croppedCanvas.height = cropHeight;
+
+        croppedCtx.drawImage(tempCanvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+        return croppedCanvas.toDataURL('image/png', 1.0);
+    }
 
     const printObject = () => {
         if(currentObjectId === -1) {
@@ -1213,13 +1180,51 @@ export const EditorCanvas2Component: FC<{}> = props =>
         // Obtém o zoom atual
         const currentZoom = GetRoomEngine().getRoomInstanceRenderingCanvasScale(currentRoomId, CANVAS_ID);
         console.log('[AUTO]', `printObject: iniciando com zoom ${currentZoom}`);
-        
-        // Processa a imagem com verificação de bordas
-        processAndDownloadImage(canvas, roomObject, currentZoom);
+
+        const link = document.createElement('a');
+        const direction = roomObject.getDirection().x;
+        const state = roomObject.model.getValue(RoomObjectVariable.FURNITURE_DATA) || 0;
+        const extras = roomObject.model.getValue(RoomObjectVariable.FURNITURE_EXTRAS) || '';
+        const fileName = `${assetData?.name || 'nitro-object'}_dir${direction}_state${state}${extras ? '_' + extras : ''}_zoom${currentZoom}_${Date.now()}.png`;
+        const finalDataUrl = createObjectOnlySnapshot(canvas);
+
+        link.download = fileName;
+        link.href = finalDataUrl;
+        link.click();
+
+        console.log('[AUTO]', 'printObject: download iniciado', fileName);
+        console.log('[AUTO]', 'printObject: dataUrl para uso externo:', finalDataUrl);
+        window.lastNitroImageUrl = finalDataUrl;
+    };
+
+    const isBackgroundImage = /^(https?:\/\/|data:image\/)/i.test(previewBackground || '');
+
+    const getBackgroundImageStyle = (): string =>
+    {
+        if(!isBackgroundImage) return 'none';
+
+        const imgurDirectMatch = (previewBackground || '').match(/^https?:\/\/i\.imgur\.com\/([a-zA-Z0-9]+)$/i);
+
+        if(imgurDirectMatch && imgurDirectMatch[1])
+        {
+            const imageId = imgurDirectMatch[1];
+
+            return `url(https://i.imgur.com/${ imageId }.png), url(https://i.imgur.com/${ imageId }.jpg), url(https://i.imgur.com/${ imageId }.jpeg), url(https://i.imgur.com/${ imageId }.webp)`;
+        }
+
+        return `url(${ previewBackground })`;
+    }
+
+    const previewBackgroundStyle = {
+        backgroundColor: (!previewBackground || previewBackground === 'transparent' || isBackgroundImage) ? 'transparent' : previewBackground,
+        backgroundImage: getBackgroundImageStyle(),
+        backgroundPosition: 'center',
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat'
     };
 
     return (
-        <div className="relative w-full h-full bg-white" ref={ elementRef }>
+        <div className="relative w-full h-full" ref={ elementRef } style={ previewBackgroundStyle }>
             {/* Informações de estado escondidas (canto superior direito) */}
             { isRoomReady && assetData && currentObjectId !== -1 && !EditorConfig.shouldHideStateInfo() && (() => {
                 const roomObject = GetRoomEngine().getRoomObject(currentRoomId, currentObjectId, currentObjectCategory);
@@ -1381,7 +1386,9 @@ export const EditorCanvas2Component: FC<{}> = props =>
             })()}
 
             { isRoomReady && !EditorConfig.shouldHideAllButtons() && !EditorConfig.shouldHideMenu() &&
-                <Flex className="absolute gap-1.5 p-2 bg-[#6A3B8F] rounded-lg bg-opacity-95 bottom-4 left-1/2 transform -translate-x-1/2 justify-center shadow-xl backdrop-blur-sm border border-[#8A4BAF]/20">
+                <Flex
+                    className="absolute gap-1.5 p-2 rounded-lg bg-opacity-95 bottom-4 left-1/2 transform -translate-x-1/2 justify-center shadow-xl backdrop-blur-sm border border-[#8A4BAF]/20"
+                    style={ { backgroundColor: toolbarColor } }>
                     <Flex className="gap-1.5 justify-center">
                         <Tooltip content="Diminuir zoom">
                             <Button
