@@ -25,6 +25,7 @@
 #### **`autodownload`**
 - **Descrição**: Ativa o download automático da imagem
 - **Exemplo**: `?autodownload=true`
+- **Alias**: `?autodowload=true` (também aceito)
 - **Uso**: Faz o download automático após renderizar
 
 #### **`hideMenu`** ⭐ **NOVO**

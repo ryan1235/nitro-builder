@@ -6,6 +6,14 @@ import { useNitroBundle } from './useNitroBundle';
 const useNitroUrlLoaderHook = () => {
     const { importBundle = null } = useNitroBundle();
 
+    const normalizeMobiName = (value: string): string => {
+        if(!value) return value;
+
+        const [ baseName ] = value.split('*');
+
+        return (baseName || value).trim();
+    }
+
     const getRawParamFromUrl = (key: string): string => {
         const regex = new RegExp(`[?&]${ key }=([^&]+)`, 'i');
         const match = window.location.href.match(regex);
@@ -71,7 +79,7 @@ const useNitroUrlLoaderHook = () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const mobi = urlParams.get('mobi');
-                const autodownload = urlParams.get('autodownload');
+                const autodownload = urlParams.get('autodownload') ?? urlParams.get('autodowload');
                 const hideMenu = urlParams.get('hideMenu');
                 const furnitureType = urlParams.get('furnitureType');
                 const hideStateInfo = urlParams.get('hideStateInfo');
@@ -118,13 +126,14 @@ const useNitroUrlLoaderHook = () => {
 
                 if (!mobi) return;
 
-                const nitroUrl = `https://images.habblet.city/habblet-asset-bundles/libraries/furniture/${mobi}.nitro`;
+                const normalizedMobi = normalizeMobiName(mobi);
+                const nitroUrl = `https://images.habblet.city/habblet-asset-bundles/libraries/furniture/${normalizedMobi}.nitro`;
                 
                 const response = await fetch(nitroUrl);
                 if (!response.ok) throw new Error('Falha ao carregar o arquivo nitro');
 
                 const arrayBuffer = await response.arrayBuffer();
-                const file = new File([arrayBuffer], `${mobi}.nitro`, { type: 'application/octet-stream' });
+                const file = new File([arrayBuffer], `${normalizedMobi}.nitro`, { type: 'application/octet-stream' });
 
                 await importBundle(file);
             } catch (err) {
