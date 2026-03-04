@@ -23,7 +23,7 @@ let PREVIEW_COUNTER = 0;
 export const EditorCanvas2Component: FC<{}> = props =>
 {
     const { localizeText } = useLanguage();
-    const [ previewBackground, setPreviewBackground ] = useState<string>('transparent');
+    const [ previewBackground, setPreviewBackground ] = useState<string>('#FFFFFF');
     const [ isFloorVisible, setIsFloorVisible ] = useState<boolean>(true);
     const [ toolbarColor, setToolbarColor ] = useState<string>('#6A3B8F');
     const [ isReady, setIsReady ] = useState<boolean>(false);
